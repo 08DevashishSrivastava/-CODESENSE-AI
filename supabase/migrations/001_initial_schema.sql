@@ -106,3 +106,4 @@ CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON public.user_settings(use
 CREATE INDEX IF NOT EXISTS idx_diagnostic_history_user_id ON public.diagnostic_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_history_created_at ON public.diagnostic_history(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON public.usage_logs(user_id);
+

@@ -80,3 +80,4 @@ function check(x) {
 """
     diags = static_engine.analyze(code, "javascript")
     assert len(diags) > 0
+

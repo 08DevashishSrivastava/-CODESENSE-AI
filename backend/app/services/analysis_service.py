@@ -1,6 +1,6 @@
 import time
 import hashlib
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from ..schemas.requests import AnalyzeRequest
 from ..schemas.responses import AnalyzeResponse
 from ..schemas.diagnostics import Diagnostic
@@ -14,17 +14,27 @@ class AnalysisService:
         self._cache: Dict[str, Tuple[float, List[Diagnostic], str]] = {}
         self._cache_ttl = 60.0 # 60 seconds TTL
 
-    def _compute_hash(self, code: str, language: str) -> str:
-        return hashlib.sha256(f"{language}:{code}".encode("utf-8")).hexdigest()
+    def _compute_hash(
+        self,
+        code: str,
+        language: str,
+        personality: str = "professional",
+        profanity_enabled: bool = False
+    ) -> str:
+        raw = f"{language}:{personality}:{profanity_enabled}:{code}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     async def analyze(
         self,
         request: AnalyzeRequest,
         mode: str = "hybrid",
-        user_lang: str = "en-US"
+        user_lang: str = "en-US",
+        personality: str = "professional",
+        profanity_enabled: bool = False,
+        custom_templates: Optional[Dict[str, str]] = None
     ) -> AnalyzeResponse:
         start_time = time.perf_counter()
-        code_hash = self._compute_hash(request.code, request.language)
+        code_hash = self._compute_hash(request.code, request.language, personality, profanity_enabled)
 
         # Check Cache
         now = time.time()
@@ -48,9 +58,8 @@ class AnalysisService:
             static_diags = static_engine.analyze(request.code, request.language)
             merged_diagnostics.extend(static_diags)
 
-        # Stage 2: AI Logical Error Detection (only in ai or hybrid mode)
+        # Stage 2: AI Logical Error Detection
         if mode in ("ai", "hybrid"):
-            # Only run AI if code has no fatal syntax errors or if user requested AI mode
             fatal_syntax = any(d.category == "syntax" and d.severity == "error" for d in merged_diagnostics)
             if not fatal_syntax or mode == "ai":
                 ai_diags = await ai_bug_detector.analyze(
@@ -60,15 +69,20 @@ class AnalysisService:
                     static_diagnostics=merged_diagnostics
                 )
                 
-                # Merge AI diagnostics without duplicating existing lines
                 existing_keys = {f"{d.line}:{d.category}" for d in merged_diagnostics}
                 for ad in ai_diags:
                     key = f"{ad.line}:{ad.category}"
                     if key not in existing_keys:
                         merged_diagnostics.append(ad)
 
-        # Stage 3: Generate voice explanation
-        voice_msg = voice_service.generate_message(merged_diagnostics, user_lang)
+        # Stage 3: Generate voice explanation matching selected personality
+        voice_msg = voice_service.generate_message(
+            diagnostics=merged_diagnostics,
+            lang_code=user_lang,
+            personality=personality,
+            profanity_enabled=profanity_enabled,
+            custom_templates=custom_templates
+        )
 
         # Sort diagnostics by line number
         merged_diagnostics.sort(key=lambda d: d.line)

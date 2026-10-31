@@ -310,3 +310,4 @@
 
   log('Bridge script initialized');
 })();
+

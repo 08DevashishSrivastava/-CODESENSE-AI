@@ -57,3 +57,4 @@ def test_ai_validator_low_confidence_discarded():
     code = "x = 1"
     diags = AIResponseValidator.validate(raw_json, code, "python")
     assert len(diags) == 0, "Low confidence diagnostics must be discarded"
+

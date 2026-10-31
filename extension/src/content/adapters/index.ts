@@ -23,3 +23,4 @@ export function getPlatformAdapter(): IPlatformAdapter | null {
 
   return null;
 }
+

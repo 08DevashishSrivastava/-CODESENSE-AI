@@ -243,3 +243,4 @@ class JavaAnalyzer(BaseAnalyzer):
             pass
 
         return diagnostics
+

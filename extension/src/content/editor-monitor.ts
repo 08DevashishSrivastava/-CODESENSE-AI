@@ -134,3 +134,4 @@ export class EditorMonitor {
     this.adapter.destroy();
   }
 }
+

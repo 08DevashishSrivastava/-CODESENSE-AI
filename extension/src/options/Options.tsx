@@ -9,11 +9,16 @@ import {
   CheckCircle, 
   RefreshCw,
   LogOut,
-  LogIn
+  LogIn,
+  Flame,
+  Smile,
+  Briefcase,
+  AlertTriangle,
+  MessageSquare
 } from 'lucide-react';
 import { SettingsStorage } from '../utils/storage';
 import { BackendApiClient } from '../utils/api-client';
-import { DEFAULT_SETTINGS, UserSettings } from '../types/settings';
+import { DEFAULT_SETTINGS, UserSettings, VoicePersonality } from '../types/settings';
 
 export default function Options() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -22,6 +27,8 @@ export default function Options() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authMessage, setAuthMessage] = useState('');
+  const [customTemplateKey, setCustomTemplateKey] = useState('boundary');
+  const [customTemplateVal, setCustomTemplateVal] = useState('');
 
   useEffect(() => {
     SettingsStorage.getSettings().then((s) => {
@@ -45,6 +52,20 @@ export default function Options() {
     const list = settings.enabled_languages || [];
     const updated = list.includes(lang) ? list.filter(l => l !== lang) : [...list, lang];
     setSettings({ ...settings, enabled_languages: updated });
+  };
+
+  const handleSetCustomTemplate = () => {
+    if (!customTemplateVal.trim()) return;
+    const current = { ...(settings.custom_voice_templates || {}) };
+    current[customTemplateKey] = customTemplateVal.trim();
+    setSettings({ ...settings, custom_voice_templates: current });
+    setCustomTemplateVal('');
+  };
+
+  const handleRemoveCustomTemplate = (key: string) => {
+    const current = { ...(settings.custom_voice_templates || {}) };
+    delete current[key];
+    setSettings({ ...settings, custom_voice_templates: current });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -93,7 +114,7 @@ export default function Options() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">CodeSense AI Settings</h1>
-            <p className="text-xs text-slate-500">Configure real-time error detection, voice preferences, and privacy</p>
+            <p className="text-xs text-slate-500">Configure real-time error detection, voice personalities, and privacy</p>
           </div>
         </div>
 
@@ -202,11 +223,149 @@ export default function Options() {
 
         {/* Right Columns: Configuration Sections */}
         <div className="space-y-6 md:col-span-2">
+          {/* Voice Personality System */}
+          <div className="bg-white p-5 border border-slate-200 rounded-lg shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-slate-900 font-semibold text-sm">
+                <Flame className="w-4 h-4 text-rose-600" />
+                <span>Voice Assistant Personality</span>
+              </div>
+              <span className="text-[11px] text-slate-500 font-mono">
+                Active: {settings.voice_personality.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { 
+                  id: 'professional', 
+                  title: 'Professional', 
+                  desc: 'Clean, objective warning alerts.',
+                  sample: '"Warning! Incorrect loop condition on line 8."'
+                },
+                { 
+                  id: 'friendly', 
+                  title: 'Friendly Bro', 
+                  desc: 'Hinglish buddy tone.',
+                  sample: '"Bhai, loop condition check kar lo. Kuch galat lag raha hai."'
+                },
+                { 
+                  id: 'roast', 
+                  title: 'Desi Roast Mode', 
+                  desc: 'Savage & funny reality checks.',
+                  sample: settings.profanity_enabled 
+                    ? '"Abe laude, ye line galat likh di! Loop condition check kar!"'
+                    : '"Abe, i <= n kyu likha? i < n hona chahiye!"'
+                }
+              ].map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSettings({ ...settings, voice_personality: item.id as VoicePersonality })}
+                  className={`p-3 rounded-lg border cursor-pointer transition flex flex-col justify-between ${
+                    settings.voice_personality === item.id
+                      ? item.id === 'roast'
+                        ? 'border-rose-500 bg-rose-50/70 ring-1 ring-rose-500'
+                        : 'border-slate-900 bg-slate-50 ring-1 ring-slate-900'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div>
+                    <h3 className={`text-xs font-bold ${settings.voice_personality === item.id && item.id === 'roast' ? 'text-rose-900' : 'text-slate-900'}`}>
+                      {item.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
+                  </div>
+                  <p className="text-[10px] italic text-slate-600 mt-2 bg-white/70 p-1.5 rounded border border-slate-100">
+                    {item.sample}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Profanity Configuration */}
+            {settings.voice_personality === 'roast' && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <div>
+                    <p className="text-xs font-bold text-rose-900">Unfiltered Profanity in Roast Mode</p>
+                    <p className="text-[11px] text-rose-700">
+                      When enabled, uses unfiltered words ("Abe laude...", "Oye laude..."). When disabled, uses clean hilarious roasts ("Abe coder...", "Bhai kya kar raha hai...").
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.profanity_enabled}
+                  onChange={(e) => setSettings({ ...settings, profanity_enabled: e.target.checked })}
+                  className="w-4 h-4 text-rose-600 rounded border-rose-300 focus:ring-rose-500 ml-4 cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Custom Voice Message Templates */}
+          <div className="bg-white p-5 border border-slate-200 rounded-lg shadow-sm space-y-4">
+            <div className="flex items-center space-x-2 text-slate-900 font-semibold text-sm">
+              <MessageSquare className="w-4 h-4 text-indigo-600" />
+              <span>Custom Voice Message Overrides</span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Customize what CodeSense AI speaks for specific error categories. Use <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">{"{line}"}</code> to insert the line number.
+            </p>
+
+            <div className="flex space-x-2">
+              <select
+                value={customTemplateKey}
+                onChange={(e) => setCustomTemplateKey(e.target.value)}
+                className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              >
+                <option value="boundary">Boundary / Off-by-one</option>
+                <option value="syntax">Syntax & Brackets</option>
+                <option value="logic">Logical & Returns</option>
+                <option value="type">Variable & Types</option>
+                <option value="infinite_loop">Infinite Loops</option>
+              </select>
+              <input
+                type="text"
+                placeholder='e.g. "Oye coder, line {line} pe loop boundary check kar!"'
+                value={customTemplateVal}
+                onChange={(e) => setCustomTemplateVal(e.target.value)}
+                className="flex-1 text-xs border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+              <button
+                onClick={handleSetCustomTemplate}
+                className="px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded hover:bg-slate-800 transition"
+              >
+                Set
+              </button>
+            </div>
+
+            {settings.custom_voice_templates && Object.keys(settings.custom_voice_templates).length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                {Object.entries(settings.custom_voice_templates).map(([key, val]) => (
+                  <div key={key} className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded border border-slate-200">
+                    <div>
+                      <span className="font-semibold text-slate-700 capitalize mr-2">{key}:</span>
+                      <span className="text-slate-600">{val}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveCustomTemplate(key)}
+                      className="text-rose-500 hover:text-rose-700 text-[11px] font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Voice Engine Settings */}
           <div className="bg-white p-5 border border-slate-200 rounded-lg shadow-sm space-y-4">
             <div className="flex items-center space-x-2 text-slate-900 font-semibold text-sm">
               <Volume2 className="w-4 h-4 text-blue-600" />
-              <span>Voice Alert Preferences</span>
+              <span>Voice Playback & Cooldown</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -218,7 +377,7 @@ export default function Options() {
                   className="w-full text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 >
                   <option value="en-US">English (US)</option>
-                  <option value="en-GB">English (UK)</option>
+                  <option value="en-IN">Indian English (en-IN)</option>
                   <option value="hi-IN">Hindi (हिन्दी)</option>
                 </select>
               </div>
@@ -293,29 +452,6 @@ export default function Options() {
                   </label>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Privacy & Distraction-Free Guarantees */}
-          <div className="bg-white p-5 border border-slate-200 rounded-lg shadow-sm space-y-3">
-            <div className="flex items-center space-x-2 text-slate-900 font-semibold text-sm">
-              <Shield className="w-4 h-4 text-purple-600" />
-              <span>Privacy & Distraction-Free Guarantee</span>
-            </div>
-
-            <div className="space-y-2 text-xs text-slate-600">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.save_history}
-                  onChange={(e) => setSettings({ ...settings, save_history: e.target.checked })}
-                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-4 h-4"
-                />
-                <span className="font-medium text-slate-800">Save Diagnostic History to Supabase</span>
-              </label>
-              <p className="text-[11px] text-slate-500 pl-6">
-                When disabled, code diagnostics exist solely in browser memory and are deleted immediately upon closing the tab.
-              </p>
             </div>
           </div>
         </div>

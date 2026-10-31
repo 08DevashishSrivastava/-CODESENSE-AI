@@ -45,3 +45,4 @@ class UsageService:
         return results
 
 usage_service = UsageService()
+

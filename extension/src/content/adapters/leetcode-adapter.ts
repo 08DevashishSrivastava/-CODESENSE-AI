@@ -229,3 +229,4 @@ export class LeetCodeAdapter extends BaseAdapter {
     this.clearDiagnostics();
   }
 }
+

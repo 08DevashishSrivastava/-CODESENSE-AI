@@ -202,3 +202,4 @@ class CppAnalyzer(BaseAnalyzer):
                     source="static",
                     voice_text=f"Warning! Incorrect loop boundary on line {line_num}."
                 ))
+

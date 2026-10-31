@@ -26,3 +26,4 @@ export function generateDiagnosticFingerprint(
   }
   return `cs_diag_${Math.abs(hash).toString(36)}`;
 }
+

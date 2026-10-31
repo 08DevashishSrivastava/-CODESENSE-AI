@@ -5,7 +5,7 @@ from ..schemas.responses import AnalyzeResponse
 from ..services.analysis_service import analysis_service
 from ..services.usage_service import usage_service
 from ..database.supabase import supabase_manager
-from ..database.repositories import history_repo
+from ..database.repositories import history_repo, settings_repo
 
 router = APIRouter(prefix="/api/v1", tags=["Analysis"])
 
@@ -35,10 +35,17 @@ async def analyze_code(
             processing_time_ms=0
         )
 
-    response = await analysis_service.analyze(request, mode="hybrid")
-    
-    # Log usage
     user_id = user["id"] if user else None
+    user_settings = await settings_repo.get_settings(user_id)
+
+    response = await analysis_service.analyze(
+        request=request,
+        mode="hybrid",
+        user_lang=user_settings.get("voice_language", "en-US"),
+        personality=user_settings.get("voice_personality", "professional"),
+        profanity_enabled=user_settings.get("profanity_enabled", False),
+        custom_templates=user_settings.get("custom_voice_templates", {})
+    )
     usage_service.record_usage(
         analysis_type="hybrid",
         language=request.language,
@@ -69,8 +76,16 @@ async def analyze_code_static(
 ):
     if request.language.lower().strip() not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}")
-    response = await analysis_service.analyze(request, mode="static")
     user_id = user["id"] if user else None
+    user_settings = await settings_repo.get_settings(user_id)
+    response = await analysis_service.analyze(
+        request=request,
+        mode="static",
+        user_lang=user_settings.get("voice_language", "en-US"),
+        personality=user_settings.get("voice_personality", "professional"),
+        profanity_enabled=user_settings.get("profanity_enabled", False),
+        custom_templates=user_settings.get("custom_voice_templates", {})
+    )
     usage_service.record_usage("static", request.language, response.processing_time_ms, user_id)
     return response
 
@@ -81,7 +96,16 @@ async def analyze_code_ai(
 ):
     if request.language.lower().strip() not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}")
-    response = await analysis_service.analyze(request, mode="ai")
+    user_id = user["id"] if user else None
+    user_settings = await settings_repo.get_settings(user_id)
+    response = await analysis_service.analyze(
+        request=request,
+        mode="ai",
+        user_lang=user_settings.get("voice_language", "en-US"),
+        personality=user_settings.get("voice_personality", "professional"),
+        profanity_enabled=user_settings.get("profanity_enabled", False),
+        custom_templates=user_settings.get("custom_voice_templates", {})
+    )
     user_id = user["id"] if user else None
     usage_service.record_usage("ai", request.language, response.processing_time_ms, user_id)
     return response

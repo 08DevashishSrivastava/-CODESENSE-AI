@@ -48,3 +48,4 @@ export interface AnalysisResult {
   voice_message?: string;
   processing_time_ms?: number;
 }
+

@@ -28,3 +28,4 @@ export interface MainWorldState {
 export interface DecorationPayload {
   diagnostics: Diagnostic[];
 }
+

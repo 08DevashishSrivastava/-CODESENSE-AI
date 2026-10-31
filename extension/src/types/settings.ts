@@ -1,10 +1,13 @@
+export type VoicePersonality = 'professional' | 'friendly' | 'roast';
+
 export interface UserSettings {
   enabled: boolean;
   voice_enabled: boolean;
-  voice_language: string; // e.g. 'en-IN' or 'hi-IN'
-  voice_personality: 'professional' | 'friendly' | 'roast';
-  profanity_enabled: boolean;
+  voice_language: string; // e.g. 'en-US', 'hi-IN', 'en-IN'
   voice_name: string; // Selected browser voice name
+  voice_personality: VoicePersonality; // 'professional' | 'friendly' | 'roast'
+  profanity_enabled: boolean; // Profanity allowed in Desi Roast Mode
+  custom_voice_templates: Record<string, string>; // User overrides per error category
   speech_rate: number; // 0.5 to 2.0 (default 1.0)
   speech_volume: number; // 0.0 to 1.0 (default 1.0)
   alert_cooldown: number; // in milliseconds (default 3000)
@@ -12,7 +15,6 @@ export interface UserSettings {
   analysis_mode: 'static' | 'ai' | 'hybrid'; // default hybrid
   save_history: boolean;
   backend_url: string; // default http://localhost:8000
-  voice_message_override?: string;
   user_token?: string; // Supabase access token
   user_id?: string;
   user_email?: string;
@@ -22,10 +24,11 @@ export interface UserSettings {
 export const DEFAULT_SETTINGS: UserSettings = {
   enabled: true,
   voice_enabled: true,
-  voice_language: 'en-IN',
+  voice_language: 'en-US',
+  voice_name: '',
   voice_personality: 'professional',
   profanity_enabled: false,
-  voice_name: '',
+  custom_voice_templates: {},
   speech_rate: 1.0,
   speech_volume: 1.0,
   alert_cooldown: 3000,
@@ -33,6 +36,5 @@ export const DEFAULT_SETTINGS: UserSettings = {
   analysis_mode: 'hybrid',
   save_history: false,
   backend_url: 'http://localhost:8000',
-  voice_message_override: '',
   is_guest: true
 };

@@ -3,17 +3,17 @@ import {
   Power, 
   Volume2, 
   VolumeX, 
-  Sliders, 
-  CheckCircle2, 
-  AlertCircle, 
-  Settings as SettingsIcon, 
-  ExternalLink,
+  Flame,
+  Smile,
+  Briefcase,
+  Play,
+  Settings as SettingsIcon,
   Zap,
-  Play
+  AlertTriangle
 } from 'lucide-react';
 import { SettingsStorage } from '../utils/storage';
 import { BackendApiClient } from '../utils/api-client';
-import { DEFAULT_SETTINGS, UserSettings } from '../types/settings';
+import { DEFAULT_SETTINGS, UserSettings, VoicePersonality } from '../types/settings';
 
 export default function App() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
@@ -41,19 +41,36 @@ export default function App() {
   const testVoice = () => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const testText = settings.voice_language.startsWith('hi') 
-      ? "चेतावनी! लाइन आठ पर लूप की शर्त गलत है।"
-      : "Warning! Incorrect loop condition on line 8.";
+    
+    let testText = "Warning! Incorrect loop condition detected on line 8.";
+    if (settings.voice_personality === 'friendly') {
+      testText = "Bhai, yahan loop condition check kar lo. Kuch galat lag raha hai.";
+    } else if (settings.voice_personality === 'roast') {
+      if (settings.profanity_enabled) {
+        testText = "Abe laude, ye line galat likh di! Loop condition check kar!";
+      } else {
+        testText = "Abe, i <= n kyu likha? i < n hona chahiye! Loop condition check kar!";
+      }
+    }
     
     const utter = new SpeechSynthesisUtterance(testText);
     utter.rate = settings.speech_rate || 1.0;
     utter.volume = settings.speech_volume || 1.0;
 
     const voices = window.speechSynthesis.getVoices();
-    if (settings.voice_language) {
-      const match = voices.find(v => v.lang.toLowerCase().startsWith(settings.voice_language.split('-')[0].toLowerCase()));
-      if (match) utter.voice = match;
+    // Prefer Indian/Hindi accent for friendly or roast
+    let matchVoice = voices.find(v => v.name === settings.voice_name);
+    if (!matchVoice && (settings.voice_personality === 'friendly' || settings.voice_personality === 'roast')) {
+      matchVoice = voices.find(v => 
+        v.lang.toLowerCase().includes('hi') || 
+        v.lang.toLowerCase().includes('in') ||
+        v.name.toLowerCase().includes('india')
+      );
     }
+    if (!matchVoice && settings.voice_language) {
+      matchVoice = voices.find(v => v.lang.toLowerCase().startsWith(settings.voice_language.split('-')[0].toLowerCase()));
+    }
+    if (matchVoice) utter.voice = matchVoice;
 
     setIsSpeaking(true);
     utter.onend = () => setIsSpeaking(false);
@@ -104,7 +121,7 @@ export default function App() {
       </header>
 
       {/* Main Controls */}
-      <div className="p-4 space-y-3.5 flex-1">
+      <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[500px]">
         {/* Enable / Disable Card */}
         <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
           <div className="flex items-center space-x-2.5">
@@ -128,8 +145,76 @@ export default function App() {
           </button>
         </div>
 
-        {/* Voice Alert Card */}
-        <div className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-3">
+        {/* Voice Personality Selector (NEW FEATURE) */}
+        <div className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {settings.voice_personality === 'roast' && <Flame className="w-4 h-4 text-rose-500" />}
+              {settings.voice_personality === 'friendly' && <Smile className="w-4 h-4 text-emerald-500" />}
+              {settings.voice_personality === 'professional' && <Briefcase className="w-4 h-4 text-blue-500" />}
+              <p className="text-xs font-semibold text-slate-900">Voice Personality</p>
+            </div>
+            {settings.voice_personality === 'roast' && (
+              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 uppercase tracking-wide">
+                Desi Roast
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { id: 'professional', label: 'Professional', icon: Briefcase },
+              { id: 'friendly', label: 'Friendly', icon: Smile },
+              { id: 'roast', label: 'Desi Roast', icon: Flame }
+            ].map((p) => {
+              const active = settings.voice_personality === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => updateSetting('voice_personality', p.id as VoicePersonality)}
+                  className={`py-1.5 px-2 text-xs rounded-md border flex flex-col items-center justify-center space-y-1 transition ${
+                    active 
+                      ? p.id === 'roast'
+                        ? 'border-rose-500 bg-rose-50 text-rose-900 font-semibold shadow-sm'
+                        : 'border-slate-900 bg-slate-900 text-white font-medium shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <p.icon className={`w-3.5 h-3.5 ${active && p.id === 'roast' ? 'text-rose-600' : ''}`} />
+                  <span className="text-[11px]">{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Profanity Toggle for Desi Roast Mode */}
+          {settings.voice_personality === 'roast' && (
+            <div className="pt-2 border-t border-rose-100 flex items-center justify-between bg-rose-50/50 p-2 rounded-md">
+              <div className="flex items-center space-x-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                <div>
+                  <p className="text-[11px] font-semibold text-rose-900">Explicit Profanity</p>
+                  <p className="text-[10px] text-rose-600">Enables unfiltered roast words</p>
+                </div>
+              </div>
+              <button
+                onClick={() => updateSetting('profanity_enabled', !settings.profanity_enabled)}
+                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                  settings.profanity_enabled ? 'bg-rose-600' : 'bg-slate-300'
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    settings.profanity_enabled ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Voice Alert Settings Card */}
+        <div className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               {settings.voice_enabled ? (
@@ -167,7 +252,7 @@ export default function App() {
                   className="text-xs border border-slate-200 rounded px-2 py-1 bg-white text-slate-800 focus:outline-none focus:border-slate-400"
                 >
                   <option value="en-US">English (US)</option>
-                  <option value="en-GB">English (UK)</option>
+                  <option value="en-IN">Indian English (en-IN)</option>
                   <option value="hi-IN">Hindi (हिन्दी)</option>
                 </select>
               </div>
@@ -196,7 +281,7 @@ export default function App() {
                 className="w-full flex items-center justify-center space-x-1.5 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium rounded transition"
               >
                 <Play className="w-3 h-3 text-slate-700" />
-                <span>{isSpeaking ? 'Speaking...' : 'Test Voice Alert'}</span>
+                <span>{isSpeaking ? 'Speaking...' : `Test ${settings.voice_personality === 'roast' ? 'Roast' : settings.voice_personality === 'friendly' ? 'Friendly' : 'Professional'} Alert`}</span>
               </button>
             </div>
           )}
@@ -228,7 +313,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="px-4 py-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-xs">
-        <span className="text-[11px] text-slate-400">v1.0.0</span>
+        <span className="text-[11px] text-slate-400">v1.1.0</span>
         <button
           onClick={openOptionsPage}
           className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-medium"

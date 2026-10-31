@@ -141,3 +141,4 @@ class JavaScriptAnalyzer(BaseAnalyzer):
                     source="static",
                     voice_text=f"Warning! Possible index out of bounds on line {line_num}."
                 ))
+

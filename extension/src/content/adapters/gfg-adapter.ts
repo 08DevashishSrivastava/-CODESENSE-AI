@@ -127,3 +127,4 @@ export class GFGAdapter extends BaseAdapter {
     }
   }
 }
+

@@ -123,3 +123,4 @@ export class HackerRankAdapter extends BaseAdapter {
     }
   }
 }
+

@@ -1,1 +1,0 @@
-const e={enabled:!0,voice_enabled:!0,voice_language:"en-IN",voice_personality:"professional",profanity_enabled:!1,voice_name:"",speech_rate:1,speech_volume:1,alert_cooldown:3e3,enabled_languages:["java","python","cpp","javascript","c"],analysis_mode:"hybrid",save_history:!1,backend_url:"http://localhost:8000",voice_message_override:"",is_guest:!0};export{e as D};

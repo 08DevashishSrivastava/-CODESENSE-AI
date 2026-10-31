@@ -94,3 +94,4 @@ export class CodeforcesAdapter extends BaseAdapter {
     this.clearDiagnostics();
   }
 }
+

@@ -26,3 +26,4 @@ class Diagnostic(BaseModel):
     source: DiagnosticSource = Field("static", description="Source of detection")
     voice_text: Optional[str] = Field(None, description="Natural sentence for TTS")
     code_snippet: Optional[str] = Field(None, description="Problematic line or tokens")
+

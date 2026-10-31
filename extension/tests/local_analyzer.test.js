@@ -42,3 +42,4 @@ class Solution {
 
   assert.strictEqual(stack.length, 2, 'Two unclosed braces should be caught in stack');
 });
+

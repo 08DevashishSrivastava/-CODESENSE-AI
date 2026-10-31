@@ -16,6 +16,9 @@ class AnalyzeRequest(BaseModel):
 class UserSettingsUpdate(BaseModel):
     voice_enabled: Optional[bool] = None
     voice_language: Optional[str] = None
+    voice_personality: Optional[str] = Field(None, description="professional | friendly | roast")
+    profanity_enabled: Optional[bool] = Field(None, description="Allow profanity in roast mode")
+    custom_voice_templates: Optional[dict] = None
     speech_rate: Optional[float] = Field(None, ge=0.5, le=2.0)
     speech_volume: Optional[float] = Field(None, ge=0.0, le=1.0)
     alert_cooldown: Optional[int] = Field(None, ge=1000, le=15000)

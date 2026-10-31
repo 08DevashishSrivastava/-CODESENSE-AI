@@ -31,3 +31,4 @@ def test_voice_generator_hindi():
     )
     msg = voice_service.generate_message([diag], "hi-IN")
     assert "लाइन 5 पर सिंटेक्स त्रुटि" in msg
+

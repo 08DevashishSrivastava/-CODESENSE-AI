@@ -68,3 +68,4 @@ export abstract class BaseAdapter implements IPlatformAdapter {
     this.changeSubscribers = [];
   }
 }
+

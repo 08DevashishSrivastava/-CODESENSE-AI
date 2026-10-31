@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_GUEST_SETTINGS = {
     "voice_enabled": True,
     "voice_language": "en-US",
+    "voice_personality": "professional",
+    "profanity_enabled": False,
+    "custom_voice_templates": {},
     "speech_rate": 1.0,
     "speech_volume": 1.0,
     "alert_cooldown": 3000,
