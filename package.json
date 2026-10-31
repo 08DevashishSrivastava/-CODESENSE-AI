@@ -1,0 +1,23 @@
+{
+  "name": "codesense-ai",
+  "version": "1.0.0",
+  "description": "CodeSense AI - Real-Time Coding Error Detection Chrome Extension and Backend",
+  "type": "module",
+  "scripts": {
+    "build:extension": "npm --prefix extension run build",
+    "test:extension": "node --test extension/tests/*.test.js",
+    "test:e2e": "node --test tests/*.test.js",
+    "test:all": "npm run test:extension && npm run test:e2e"
+  },
+  "keywords": [
+    "chrome-extension",
+    "ai",
+    "leetcode",
+    "fastapi",
+    "monaco-editor",
+    "error-detection",
+    "voice-alert"
+  ],
+  "author": "CodeSense AI Team",
+  "license": "MIT"
+}

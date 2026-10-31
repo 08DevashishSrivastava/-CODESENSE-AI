@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "CodeSense AI",
+  "version": "0.1.0",
+  "description": "Detect programmer mistakes in real time and read them aloud with minimal distraction.",
+  "permissions": ["storage", "scripting", "activeTab", "tabs"],
+  "host_permissions": [
+    "*://*.leetcode.com/*",
+    "*://*.geeksforgeeks.org/*",
+    "*://*.hackerrank.com/*",
+    "*://*.codechef.com/*",
+    "*://*.codeforces.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.leetcode.com/*",
+        "*://*.geeksforgeeks.org/*",
+        "*://*.hackerrank.com/*",
+        "*://*.codechef.com/*",
+        "*://*.codeforces.com/*"
+      ],
+      "js": [
+        "adapters/base-adapter.js",
+        "adapters/leetcode-adapter.js",
+        "adapters/gfg-adapter.js",
+        "adapters/hackerrank-adapter.js",
+        "adapters/codechef-adapter.js",
+        "adapters/codeforces-adapter.js",
+        "adapters/index.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "CodeSense AI",
+    "default_popup": "settings.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
