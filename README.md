@@ -1,248 +1,462 @@
 # CodeSense AI
 
-> **Detect Mistakes While You Code. Don't Wait to Run.**
+> Real-time programming error detection for online coding platforms.
 
-CodeSense AI is an AI-powered Chrome Extension and FastAPI backend that detects programming errors in real time as you write code on online coding platforms (LeetCode, GeeksforGeeks, HackerRank, CodeChef, and Codeforces).
+CodeSense AI is a Manifest V3 Chrome extension with a FastAPI analysis backend. It watches supported online code editors while you type, detects likely syntax, type, boundary, logic, and runtime problems, highlights the relevant code location, and can explain the problem through the browser's native text-to-speech engine.
 
-Instead of forcing developers to repeatedly click **Run**, **Compile**, or **Submit**, CodeSense AI highlights the exact erroneous line with a subtle red squiggly underline and immediately speaks a concise, natural voice explanation.
+The project is designed for developers and learners who want useful feedback before pressing **Run**, **Compile**, or **Submit**. It combines fast browser-side checks with backend static analysis and optional AI-assisted reasoning, while keeping the editor experience quiet and non-blocking.
 
----
+## Contents
 
-## 1. Product Vision & Core Experience
+- [Key capabilities](#key-capabilities)
+- [How the system works](#how-the-system-works)
+- [Supported platforms and languages](#supported-platforms-and-languages)
+- [Repository structure](#repository-structure)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [Load the extension in Chrome](#load-the-extension-in-chrome)
+- [Backend configuration](#backend-configuration)
+- [Supabase setup](#supabase-setup)
+- [Settings and voice modes](#settings-and-voice-modes)
+- [API overview](#api-overview)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Security and privacy](#security-and-privacy)
+- [Development workflow](#development-workflow)
+- [Contributing](#contributing)
+- [License](#license)
 
-### Distraction-Free Design
-CodeSense AI adheres to a strict zero-distraction principle:
-- ❌ **No intrusive chatbots or overlays** covering your code editor.
-- ❌ **No repeated popups** or unwanted automated code replacements.
-- ❌ **No speech spam**: Identical errors are deduplicated with fingerprinting, and a cooldown prevents repeated alerts for unchanged mistakes.
-- ✅ **Subtle red squiggly underline** on the exact erroneous line without shifting cursor or blocking typing.
-- ✅ **Intelligent voice alert** speaking short, natural explanations (English & Hindi supported).
+## Key capabilities
 
----
+### Real-time diagnostics
 
-## 2. Complete Tech Stack
+- Debounced editor monitoring avoids interrupting typing or sending a request for every keystroke.
+- Browser-side local analysis provides immediate feedback for common syntax mistakes.
+- Backend analysis adds language-specific static checks and optional AI reasoning.
+- Results are versioned so stale responses cannot overwrite newer editor state.
+- Duplicate diagnostics are merged before they are displayed or spoken.
 
-| Layer | Technologies |
-|---|---|
-| **Browser Extension** | Manifest V3, TypeScript, React 19, Tailwind CSS, Lucide Icons, Vite |
-| **Editor Bridges** | Monaco Editor (`deltaDecorations`), CodeMirror 5/6, Isolated MAIN World bridge |
-| **Voice Engine** | Web Speech API (`window.speechSynthesis`, `SpeechSynthesisUtterance`) |
-| **Backend** | Python 3.12, FastAPI, Pydantic v2, Uvicorn, Async HTTPX |
-| **Static Analyzers** | Python AST visitor, Java AST/compiler parser, Clang/C++ analyzer, JavaScript analyzer |
-| **AI Analysis Engine** | Configurable OpenAI-compatible LLM abstraction (OpenAI, Groq, Ollama, DeepSeek) |
-| **Database & Auth** | Supabase PostgreSQL, Row Level Security (RLS), Supabase Auth & JWTs, Guest Mode fallback |
+### Editor-aware highlighting
 
----
+CodeSense AI uses platform adapters and editor bridges rather than assuming that every website exposes code in the same way.
 
-## 3. Project Architecture
+- Monaco Editor support through editor model access and decorations.
+- CodeMirror support for common CodeMirror 5 and CodeMirror 6 layouts.
+- Textarea and DOM fallbacks for platforms with limited editor APIs.
+- Red squiggly-style decorations or line indicators without replacing the user's code.
+
+### Voice explanations
+
+The extension uses the browser's native Web Speech API, so a separate text-to-speech service is not required.
+
+- Professional, friendly, and Desi Roast voice personalities.
+- English and Hindi voice-language options, subject to voices installed by the operating system and browser.
+- Adjustable speech rate, volume, cooldown, and voice selection.
+- Custom voice templates for teams or personal learning preferences.
+- Fingerprint-based deduplication prevents repeated speech for the same unchanged error.
+- Resolved errors are removed from the spoken-error cache and can be announced again if they reappear.
+
+### Guest-first operation
+
+The extension can run without Supabase credentials. In guest mode, settings are stored locally and the application can use local analysis plus the configured backend. Supabase is optional for authentication, synchronized settings, history, and usage tracking.
+
+## How the system works
+
+The normal analysis lifecycle is:
 
 ```text
-CodeSense AI
-│
-├── extension/                       # Chrome Extension (Manifest V3)
-│   ├── dist/                        # Production build ready for Chrome
-│   ├── public/                      # Manifest, icons, bridge resources
-│   ├── src/
-│   │   ├── background/              # Service worker (lifecycle & storage sync)
-│   │   ├── content/                 # Content script & platform adapters
-│   │   │   ├── bridge.ts            # MAIN world Monaco/CodeMirror bridge
-│   │   │   ├── editor-monitor.ts    # Debounced real-time change detector
-│   │   │   ├── local-analyzer.ts    # Browser-side fast syntax fallback
-│   │   │   ├── voice-engine.ts      # Web Speech API anti-spam voice alerts
-│   │   │   └── adapters/            # LeetCode, GFG, HackerRank, CodeChef, Codeforces
-│   │   ├── popup/                   # Minimalist extension popup UI (React + Tailwind)
-│   │   ├── options/                 # Full options & account management UI
-│   │   ├── types/                   # TypeScript schemas & message protocols
-│   │   └── utils/                   # Fingerprinting, storage, API client
-│   └── vite.config.ts               # Multi-entry build pipeline
-│
-├── backend/                         # FastAPI Backend
-│   ├── app/
-│   │   ├── main.py                  # FastAPI app & CORS configuration
-│   │   ├── config.py                # Pydantic Settings
-│   │   ├── api/                     # REST endpoints (/analyze, /health, /settings, /usage)
-│   │   ├── analyzers/               # Java, Python, C++, C, JavaScript static analyzers
-│   │   ├── ai/                      # LLM provider, prompts, response validator
-│   │   ├── database/                # Supabase client, repositories, Guest mode fallback
-│   │   └── services/                # Analysis orchestrator, voice generator, usage tracker
-│   ├── tests/                       # Pytest test suite (17 passed unit & API tests)
-│   ├── requirements.txt             # Python dependencies
-│   ├── Dockerfile                   # Production Docker image
-│   └── .env.example                 # Environment variables template
-│
-├── supabase/                        # Database migrations
-│   └── migrations/
-│       └── 001_initial_schema.sql   # Tables (profiles, user_settings, history, usage) + RLS
-│
-├── tests/                           # Integration & End-to-End Tests
-│   └── e2e_flow.test.js             # End-to-end full flow lifecycle simulation
-│
-├── start_backend.bat                # 1-click backend launcher
-└── run_tests.bat                    # 1-click test runner
+User edits code
+      |
+      v
+Platform adapter reads editor state
+      |
+      v
+Debounce editor changes and assign a code version
+      |
+      +--> Local browser analyzer returns immediate syntax diagnostics
+      |
+      +--> FastAPI backend runs static analyzers and optional AI validation
+      |
+      v
+Merge, fingerprint, and validate diagnostics
+      |
+      +--> Apply editor decorations
+      |
+      +--> Generate a concise voice explanation
 ```
 
----
+If the backend is unavailable, the extension keeps local diagnostics active. If code changes while a backend request is in flight, the response is discarded when its version is no longer current.
 
-## 4. Multi-Language Error Detection
+## Supported platforms and languages
 
-CodeSense AI provides language-specific syntax, semantic, and logical diagnostics:
+### Online platforms
 
-### ☕ Java
-- Missing semicolons at statement ends.
-- Unmatched braces `{`, `}`, `(`, `)`, `[`, `]`.
-- Loop boundary errors (e.g. `i <= arr.length` causing `ArrayIndexOutOfBoundsException`).
-- String reference comparison (`==` instead of `.equals()`).
-- Method return statements and JDK `javac` compiler diagnostics.
+| Platform | Typical editor | Adapter status |
+| --- | --- | --- |
+| LeetCode | Monaco | Supported |
+| GeeksforGeeks | Monaco or CodeMirror | Supported |
+| HackerRank | Monaco or CodeMirror | Supported |
+| CodeChef | Monaco or Ace | Supported |
+| Codeforces | Textarea or Ace | Supported |
 
-### 🐍 Python
-- AST-level syntax validation and indentation error detection.
-- Missing colons after block statements (`def`, `class`, `if`, `for`, `while`, `try`).
-- Dangerous mutable default arguments (`def func(a=[])`).
-- Unreachable code after `return` or `raise`.
-- Suspicious comparisons (`if x is 5:` or `== None`).
-- Loop range off-by-one errors (`range(len(arr) + 1)`).
+Websites can change their DOM and editor implementation. The adapter layer isolates those changes so an individual platform can be updated without rewriting the analyzer.
 
-### ⚙️ C & C++
-- Semicolon requirements (including structs and classes `struct Point { int x; };`).
-- Inadvertent assignments in conditions (`if (x = 0)`).
-- Loop bounds and array index violations (`i <= arr.size()`).
-- Unmatched delimiters and pointer dereference issues.
+### Analysis languages
 
-### 🌐 JavaScript
-- Delimiter and bracket balance stack.
-- Assignment in conditions (`if (x = 5)` instead of `===`).
-- Off-by-one boundary risks on arrays.
+The primary language identifiers are `python`, `java`, `cpp`, `c`, and `javascript`.
 
----
+Examples of checks include:
 
-## 5. Voice Alert Engine & Anti-Spam System
+- Python block colons, indentation problems, suspicious assignments, and bracket mismatches.
+- Java statement termination, delimiters, loop-boundary risks, and common reference-comparison mistakes.
+- C and C++ semicolon, delimiter, condition-assignment, and array-boundary checks.
+- JavaScript delimiter balance, assignment inside conditions, and common boundary warnings.
 
-- Built on the browser's native **Web Speech API** (`window.speechSynthesis`). Requires **no paid external TTS API**.
-- **Anti-Spam Features**:
-  1. **Deterministic Fingerprints**: Every error gets a stable identifier (`language:line:category:hash`).
-  2. **Deduplication**: The same error will not be spoken repeatedly while the user continues typing.
-  3. **Alert Cooldown**: Configurable cooldown (default 3000ms) prevents overlapping speech.
-  4. **Error Correction Tracking**: When an error is fixed, its fingerprint is cleared so future occurrences can be alerted again.
-  5. **Natural Utterances**: Generates natural speech in English and Hindi (e.g., *"Warning! Incorrect loop condition on line 8."*).
+Static analysis is advisory. A warning is a signal to review the code, not a guarantee that the program will fail.
 
----
+## Repository structure
 
-## 6. Installation & Quick Start
+```text
+.
+|-- extension/
+|   |-- adapters/                 Legacy unpacked-extension adapters
+|   |-- background.js             Legacy Manifest V3 service worker
+|   |-- content.js                Legacy content script
+|   |-- manifest.json             Legacy unpacked-extension manifest
+|   |-- public/                   Vite public assets and build manifest
+|   |-- src/
+|   |   |-- background/           TypeScript service worker
+|   |   |-- content/              Bridges, monitors, analyzers, adapters
+|   |   |-- options/              Full settings page
+|   |   |-- popup/                Toolbar popup
+|   |   |-- types/                Shared TypeScript contracts
+|   |   `-- utils/                API, storage, debounce, fingerprints
+|   |-- tests/                    Extension unit tests
+|   |-- vite.config.ts            Multi-entry Vite build configuration
+|   `-- dist/                     Generated production extension
+|-- backend/
+|   |-- app/
+|   |   |-- api/                  FastAPI route modules
+|   |   |-- analyzers/             Language-specific analyzers
+|   |   |-- ai/                   Provider abstraction and response validation
+|   |   |-- database/              Supabase client and repositories
+|   |   |-- schemas/               Pydantic request and response models
+|   |   `-- services/              Analysis, voice, and usage orchestration
+|   |-- tests/                    Backend pytest suite
+|   |-- requirements.txt
+|   |-- Dockerfile
+|   `-- .env.example
+|-- supabase/migrations/           Database schema migrations
+|-- tests/e2e_flow.test.js         Extension lifecycle simulation
+|-- start_backend.bat              Windows backend launcher
+|-- run_tests.bat                  Windows full test runner
+`-- docker-compose.yml             Container development setup
+```
 
-### Prerequisites
-- Node.js 18+ (tested with v26.13)
-- Python 3.11+ (tested with Python 3.12.10)
-- Google Chrome or Chromium-based browser (Brave, Edge)
+### Which extension folder should be loaded?
 
-### 1. Build the Chrome Extension
+There are two supported development paths in the repository:
+
+1. **Legacy unpacked path:** load `extension/`. Its root [manifest.json](extension/manifest.json) references `background.js`, `content.js`, and the root `adapters/` directory.
+2. **Vite production path:** run `npm run build:extension`, then load `extension/dist/`. Its generated manifest references the bundled `service-worker.js` and `content.js`.
+
+When developing the TypeScript and React source under `extension/src`, use the Vite production path after rebuilding. Chrome must always be given a folder containing `manifest.json` directly; do not select the parent repository folder and do not select the manifest file itself.
+
+## Requirements
+
+- Google Chrome or another Chromium-based browser with Manifest V3 support.
+- Node.js 18 or newer. Node.js 22+ is recommended.
+- Python 3.11 or newer. Python 3.12 is used by the current test workflow.
+- A local backend is optional for browser-only local syntax checks, but recommended for complete diagnostics.
+- Supabase is optional. Guest mode works without it.
+
+## Quick start
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/08DevashishSrivastava/-CODESENSE-AI.git
+cd -CODESENSE-AI
+```
+
+### 2. Install extension dependencies
+
+```bash
+cd extension
+npm install
+cd ..
+```
+
+### 3. Start the backend
+
+On Windows, double-click `start_backend.bat`, or run the backend directly:
+
+```bash
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+# source .venv/bin/activate
+
+pip install -r backend/requirements.txt
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Verify that the backend is responding at `http://localhost:8000/health`. Interactive API documentation is available at `http://localhost:8000/docs`.
+
+### 4. Build the extension
+
+From the repository root:
+
+```bash
+npm run build:extension
+```
+
+Or from the extension directory:
+
+```bash
+cd extension
+npm run build
+```
+
+## Load the extension in Chrome
+
+### Recommended: load the production build
+
+1. Run `npm run build:extension` from the repository root.
+2. Open `chrome://extensions` in Chrome.
+3. Enable **Developer mode** in the top-right corner.
+4. Click **Load unpacked**.
+5. Select `extension/dist`.
+6. Confirm that the extension card appears.
+7. Pin CodeSense AI from the Chrome extensions menu if desired.
+
+### Alternative: load the root legacy extension
+
+The root [extension/manifest.json](extension/manifest.json) is also loadable directly:
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the `extension` folder, not the repository root.
+
+The selected folder must contain `manifest.json` at its top level. If Chrome reports **Manifest file is missing or unreadable**, the wrong directory was selected or the folder was not extracted from the ZIP archive.
+
+## Backend configuration
+
+Copy the environment template before enabling optional services:
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+Important configuration areas include:
+
+```ini
+HOST=127.0.0.1
+PORT=8000
+DEBUG=False
+
+# Optional OpenAI-compatible provider
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+AI_TIMEOUT_SECONDS=8.0
+
+# Optional Supabase integration
+SUPABASE_URL=
+SUPABASE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Never commit `backend/.env`. API keys, Supabase service-role keys, and access tokens must remain outside source control.
+
+### Analysis modes
+
+The extension supports configurable analysis behavior:
+
+- **Static:** prioritize deterministic local and backend static analyzers.
+- **AI:** use backend AI analysis where configured.
+- **Hybrid:** combine local checks, static analysis, and AI validation when available.
+
+The backend remains useful without an AI key. In that case, static analyzers continue to provide deterministic diagnostics.
+
+## Supabase setup
+
+Supabase is only required for authenticated settings, synchronized preferences, diagnostic history, and usage tracking.
+
+1. Create a Supabase project.
+2. Copy the project URL and anon key into `backend/.env`.
+3. Apply the migrations in `supabase/migrations/` using the Supabase SQL Editor or your migration workflow.
+4. Configure authentication if account login is enabled.
+5. Restart the backend after changing environment variables.
+
+The migrations create the application tables, indexes, constraints, and row-level security policies. Review policies in your own Supabase project before deploying publicly.
+
+## Settings and voice modes
+
+The extension settings include:
+
+- Enable or disable analysis and voice alerts.
+- Select language and browser voice.
+- Choose `professional`, `friendly`, or `roast` personality.
+- Enable profanity only when explicitly desired for roast mode.
+- Configure speech rate, volume, cooldown, and enabled languages.
+- Choose static, AI, or hybrid analysis.
+- Enable or disable history saving.
+- Configure the backend URL and custom voice templates.
+
+Voice output depends on the voices installed in the operating system. If Hindi speech is unavailable, install a Hindi system voice or select a compatible browser voice with an `hi-IN` language tag.
+
+## API overview
+
+The backend is a FastAPI application. The most important routes are:
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/health` | GET | Backend availability check |
+| `/api/v1/analyze` | POST | Run the configured analysis pipeline |
+| `/api/v1/analyze/static` | POST | Run static analysis only |
+| `/api/v1/analyze/ai` | POST | Request AI-assisted analysis |
+| `/docs` | GET | OpenAPI / Swagger documentation |
+
+Example analysis request:
+
+```json
+{
+  "language": "python",
+  "code": "if value == 1\n    print(value)",
+  "problem_context": {
+    "title": "Demo problem",
+    "description": "Print a value"
+  },
+  "code_version": 1
+}
+```
+
+Diagnostics use a stable structure containing an identifier, line and column information, category, message, severity, confidence, source, and optional voice text. This structure lets the extension render results consistently across all supported editors.
+
+## Testing
+
+Run the complete JavaScript suite from the repository root:
+
+```bash
+npm run test:all
+```
+
+Run the backend suite:
+
+```bash
+python -m pytest backend/tests -v
+```
+
+On Windows, the combined helper is:
+
+```bat
+run_tests.bat
+```
+
+The test coverage includes diagnostic fingerprints, local syntax analysis, language analyzers, AI response validation, voice-message generation, backend API behavior, and the end-to-end lifecycle from typing a bug to clearing the diagnostic after a fix.
+
+Run a production build before loading a changed extension into Chrome:
+
+```bash
+npm run build:extension
+```
+
+## Troubleshooting
+
+### Chrome says “Manifest file is missing or unreadable”
+
+Select the folder containing `manifest.json` directly:
+
+```text
+C:\Users\asus\Desktop\Extension\extension
+```
+
+Do not select the parent repository folder, the ZIP file, or `manifest.json` itself.
+
+### The extension appears but does not analyze code
+
+1. Reload the supported webpage after installing or updating the extension.
+2. Confirm that the backend is running at `http://localhost:8000`.
+3. Open `chrome://extensions` and click **Service worker > Inspect**.
+4. Check the browser console for content-script or permission errors.
+5. Confirm that the current site is one of the supported platforms.
+6. Check that the selected language is enabled in extension settings.
+
+### The service worker says “Inactive”
+
+This is normal for Manifest V3. Chrome suspends idle service workers and wakes them when an extension event occurs. Open **Inspect** from the extension card to see runtime logs.
+
+### Voice alerts do not play
+
+- Confirm that voice alerts are enabled.
+- Check the browser and operating-system volume.
+- Verify that the selected language has an installed speech voice.
+- Interact with the page first if the browser blocks speech before user interaction.
+- Increase the speech volume or reduce the alert cooldown if necessary.
+
+### Backend requests fail
+
+- Open `http://localhost:8000/health`.
+- Confirm the configured backend URL has no trailing path errors.
+- Check that the backend port is not already occupied.
+- Review the FastAPI terminal logs.
+- Use `http://127.0.0.1:8000` if `localhost` resolution is problematic.
+
+## Security and privacy
+
+- Source code is analyzed in memory and is not persisted by default.
+- History saving is opt-in.
+- AI and Supabase credentials remain in the backend environment, not in the extension bundle.
+- The extension requests access only to the supported coding platforms and configured local backend.
+- Backend responses are validated before diagnostics are applied.
+- Code-version checks prevent stale network results from changing newer editor state.
+
+Before deploying to production, review host permissions, CORS configuration, Supabase RLS policies, authentication settings, and logging behavior for your environment.
+
+## Development workflow
+
+### Extension development
+
 ```bash
 cd extension
 npm install
 npm run build
 ```
-This produces the bundled extension in `extension/dist/`.
 
-### 2. Load the Extension in Chrome
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (toggle in the top-right corner).
-3. Click **Load unpacked**.
-4. Select the `extension/dist` directory.
-5. The **CodeSense AI** extension icon will appear in your Chrome toolbar!
-
-### 3. Start the Backend
-```bash
-# In project root
-# Double click start_backend.bat OR run via command line:
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-The FastAPI backend will be live at `http://localhost:8000`. You can test `/health` or view interactive OpenAPI docs at `http://localhost:8000/docs`.
-
----
-
-## 7. Configuration & Environment Variables
-
-Copy `backend/.env.example` to `backend/.env` and configure your credentials:
-
-```ini
-# Server
-HOST=0.0.0.0
-PORT=8000
-DEBUG=False
-
-# AI Provider (OpenAI-compatible)
-# Supports OpenAI, Groq, Ollama, DeepSeek, Local LLM proxies
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-AI_TIMEOUT_SECONDS=8.0
-
-# Supabase (Optional - Guest mode works without Supabase)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-```
-
-### Guest Mode vs Authenticated Mode
-- **Guest Mode (Default)**: If Supabase credentials are not configured, CodeSense AI runs seamlessly with full local static analysis, backend code analysis, and voice alerts. Settings are persisted locally in `chrome.storage.sync`.
-- **Authenticated Mode**: With Supabase configured, users can sign up, log in, synchronize preferences across devices, and optionally save diagnostic history.
-
----
-
-## 8. Supabase Database Setup
-
-If you wish to enable persistent cloud settings and history:
-1. Create a project in [Supabase](https://supabase.com).
-2. Go to the **SQL Editor** in the Supabase Dashboard.
-3. Open `supabase/migrations/001_initial_schema.sql` and run the script.
-4. The migration will create:
-   - `profiles` with Row Level Security (RLS)
-   - `user_settings` with RLS
-   - `diagnostic_history` with RLS
-   - `usage_logs` with RLS
-   - Optimized indexes on `user_id` and timestamps.
-
----
-
-## 9. Running Automated Tests
-
-Run the full automated test suite (backend pytest + extension unit tests + e2e simulation):
+For iterative UI work, run Vite in development mode and rebuild when testing the unpacked extension in Chrome:
 
 ```bash
-# Run 1-click batch script
-run_tests.bat
-
-# OR run via terminal:
-npm run test:all
-python -m pytest backend/tests -v
+npm run dev
 ```
 
-### Test Results
-- ✅ **17 Backend Pytest Tests**: Passing (AI validator, Java/Python/C++/JS analyzers, health API, settings CRUD, usage stats, voice generator).
-- ✅ **Extension Unit Tests**: Passing (diagnostic fingerprinting, bracket matching stack).
-- ✅ **End-to-End Simulation Test**: Passing (verifies full lifecycle: Type Bug → Highlight line in red → Voice speaks → User fixes bug → Underline clears → Spoken cache resets).
+The production extension is generated in `extension/dist`. Build output is generated content; edit files under `extension/src` instead of editing bundled JavaScript directly.
 
----
+### Backend development
 
-## 10. Platform Compatibility
+```bash
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
-| Platform | Editor Used | Status | Highlighting Mechanism |
-|---|---|---|---|
-| **LeetCode** | Monaco Editor | Supported | Monaco `deltaDecorations` (red squiggly underline) + DOM fallback |
-| **GeeksforGeeks** | Monaco / CodeMirror | Supported | Delta decorations & CodeMirror markText |
-| **HackerRank** | Monaco / CodeMirror | Supported | Delta decorations & CodeMirror markText |
-| **CodeChef** | Monaco / Ace | Supported | Delta decorations & DOM highlight fallback |
-| **Codeforces** | Textarea / Ace | Supported | Line error indicator badge & voice alert |
+When adding a language analyzer, keep analyzer output compatible with the shared diagnostic schema and add focused tests before updating the extension rendering layer.
 
----
+### Pull request checklist
 
-## 11. Security & Privacy
+- Run `npm run test:all`.
+- Run `python -m pytest backend/tests -v`.
+- Run `npm run build:extension`.
+- Verify the changed files on at least one supported platform.
+- Check that no `.env`, API key, token, cache, or generated temporary file is included.
+- Update this README when setup, supported platforms, or configuration behavior changes.
 
-1. **Privacy-First**: Source code is processed ephemerally in memory and is **never stored** unless the user explicitly enables "Save Diagnostic History".
-2. **Debounced & Efficient**: Requests are debounced (600ms) to ensure minimal network traffic and zero editor freezing.
-3. **Local Offline Fallback**: If the backend is unreachable or offline, the Chrome Extension continues detecting syntax and bracket errors locally in the browser.
-4. **No Secret Leaks**: API keys and service-role secrets are kept exclusively in the backend `.env` file and never bundled into the Chrome extension.
+## Contributing
 
----
+Issues and pull requests are welcome. Please include a clear description, reproduction steps, browser and platform details, relevant logs with secrets removed, and tests covering new analyzer or extension behavior where practical.
+
+Keep user-facing diagnostics concise and actionable. Avoid noisy alerts, destructive automatic edits, or diagnostics that claim certainty when the analyzer only has a low-confidence signal.
 
 ## License
-MIT License. Built for programmers who want to catch bugs as they code.
+
+This project is released under the MIT License.
